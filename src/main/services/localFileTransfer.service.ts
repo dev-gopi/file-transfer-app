@@ -11,16 +11,17 @@ import * as net from 'net';
 import * as os from 'os';
 import * as path from 'path';
 import {
-  ConnectionInfo,
-  ConnectionLostInfo,
-  ConnectionStatus,
-  DiscoveredService,
-  FileProgress,
-  ReceivedFile,
-  TransferMetadata,
+    ConnectionInfo,
+    ConnectionLostInfo,
+    ConnectionStatus,
+    DiscoveredService,
+    FileProgress,
+    ReceivedFile,
+    TransferMetadata,
 } from '../interfaces/localFileTransfer.interface';
 import { formatFileSize, getLocalIPAddress } from '../lib/network.lib';
 import { IPC_CHANNELS, NETWORK } from '../utils/constants';
+import { getUniqueFileName } from '../utils/fileHelper';
 import { logger } from '../utils/logger';
 
 export class LocalFileTransferService {
@@ -765,13 +766,17 @@ export class LocalFileTransferService {
       logger.info(
         `[SAVE] Saving file: ${this.currentFileMetadata.fileName}, size: ${this.receivingBuffer.length}`
       );
-      const savePath = path.join(this.saveDirectory, this.currentFileMetadata.fileName);
+      
+      // Get unique file name if file already exists
+      const uniqueFileName = getUniqueFileName(this.currentFileMetadata.fileName, this.saveDirectory);
+      const savePath = path.join(this.saveDirectory, uniqueFileName);
+      
       fs.writeFileSync(savePath, this.receivingBuffer);
 
-      logger.success(`File saved: ${this.currentFileMetadata.fileName}`);
+      logger.success(`File saved: ${uniqueFileName} (original: ${this.currentFileMetadata.fileName})`);
 
       this.mainWindow?.webContents.send(IPC_CHANNELS.FILE_RECEIVED, {
-        fileName: this.currentFileMetadata.fileName,
+        fileName: uniqueFileName,
         fileSize: this.currentFileMetadata.fileSize,
         savePath,
         currentFile: this.currentFileMetadata.currentFile,

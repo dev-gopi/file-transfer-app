@@ -10,6 +10,7 @@ import { getLocalIPAddress } from '../lib/network.lib';
 import { LocalFileTransferService } from '../services/localFileTransfer.service';
 import RemoteFileTransferService from '../services/remoteFileTransfer.service';
 import { IPC_CHANNELS } from '../utils/constants';
+import { getUniqueFileName } from '../utils/fileHelper';
 import { logger } from '../utils/logger';
 
 let localTransferService: LocalFileTransferService | null = null;
@@ -96,7 +97,10 @@ export function setupIPCHandlers(mainWindow: BrowserWindow): void {
     (_event, fileName: string, buffer: Uint8Array, saveDir?: string) => {
       try {
         const savePath = saveDir || app.getPath('downloads');
-        const fullPath = path.join(savePath, fileName);
+        
+        // Get unique file name if file already exists
+        const uniqueFileName = getUniqueFileName(fileName, savePath);
+        const fullPath = path.join(savePath, uniqueFileName);
 
         // Ensure directory exists
         const dir = path.dirname(fullPath);
@@ -104,11 +108,11 @@ export function setupIPCHandlers(mainWindow: BrowserWindow): void {
           fs.mkdirSync(dir, { recursive: true });
         }
 
-        // Write file
+        // Write file to disk
         fs.writeFileSync(fullPath, Buffer.from(buffer));
-        logger.success(`Saved received file: ${fileName}`);
+        logger.success(`Received file saved: ${uniqueFileName} (original: ${fileName})`);
 
-        return { success: true, path: fullPath };
+        return { success: true, path: fullPath, fileName: uniqueFileName };
       } catch (err) {
         const error = err as Error;
         logger.error(`Failed to save received file ${fileName}:`, error.message);
@@ -121,7 +125,10 @@ export function setupIPCHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(IPC_CHANNELS.INIT_FILE_STREAM, (_event, fileName: string, saveDir?: string) => {
     try {
       const savePath = saveDir || app.getPath('downloads');
-      const fullPath = path.join(savePath, fileName);
+      
+      // Get unique file name if file already exists
+      const uniqueFileName = getUniqueFileName(fileName, savePath);
+      const fullPath = path.join(savePath, uniqueFileName);
 
       // Ensure directory exists
       const dir = path.dirname(fullPath);
@@ -131,9 +138,9 @@ export function setupIPCHandlers(mainWindow: BrowserWindow): void {
 
       // Create empty file
       fs.writeFileSync(fullPath, Buffer.alloc(0));
-      logger.info(`Initialized file stream: ${fileName}`);
+      logger.info(`Initialized file stream: ${uniqueFileName} (original: ${fileName})`);
 
-      return { success: true, path: fullPath };
+      return { success: true, path: fullPath, fileName: uniqueFileName };
     } catch (err) {
       const error = err as Error;
       logger.error(`Failed to initialize file stream ${fileName}:`, error.message);
